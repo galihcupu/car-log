@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoLog Cloud — Pencatatan Historis Service Mobil</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Identity Services (GIS) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-sync {
+            animation: pulse-subtle 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- ===================================================================== -->
+    <!-- GERBANG LOGIN (KHUSUS AKUN LOKAL - TANPA LOGIN GOOGLE DI LAYAR AWAL) -->
+    <!-- ===================================================================== -->
+    <section id="authGateScreen" class="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950">
+        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+            <!-- Header Kartu Login -->
+            <div class="bg-slate-900 px-6 py-7 text-center text-white relative overflow-hidden">
+                <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3.5 shadow-lg shadow-blue-600/30">
+                    <i data-lucide="car-front" class="w-8 h-8 text-white"></i>
+                </div>
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                    <span>AutoLog Cloud</span>
+                </div>
+                <h1 class="text-xl sm:text-2xl font-bold tracking-tight">Pencatatan Service Mobil</h1>
+                <p class="text-xs sm:text-sm text-slate-300 mt-1">Masuk dengan akun lokal untuk mengakses catatan kendaraan Anda.</p>
+            </div>
+
+            <!-- Body Kartu Login -->
+            <div class="p-6 sm:p-7 space-y-5">
+                <!-- Pesan Error / Info Login -->
+                <div id="authAlertBox" class="hidden p-3 rounded-xl text-xs font-medium flex items-start gap-2 bg-red-50 text-red-700 border border-red-200">
+                    <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                    <span id="authAlertText">Pesan kesalahan</span>
+                </div>
+
+                <!-- Form Autentikasi Lokal -->
+                <div class="space-y-3.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <i data-lucide="lock" class="w-4 h-4 text-blue-600"></i>
+                            <span id="localAuthHeading">Masuk ke Akun Lokal</span>
+                        </span>
+                        <button type="button" id="toggleLocalModeBtn" onclick="toggleLocalAuthSetupMode()" class="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline">
+                            Buat / Reset PIN
+                        </button>
+                    </div>
+
+                    <form id="localLoginForm" onsubmit="handleLocalAuthSubmit(event)" class="space-y-3">
+                        <div id="localNameFieldWrapper">
+                            <label class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">Nama Pengguna</label>
+                            <input type="text" id="localUserNameInput" placeholder="Masukkan nama Anda (misal: Budi)" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">PIN / Kata Sandi</label>
+                            <input type="password" id="localPinInput" required minlength="4" maxlength="20" placeholder="Minimal 4 karakter" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        </div>
+                        <button type="submit" id="localAuthSubmitBtn" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i data-lucide="log-in" class="w-4 h-4"></i>
+                            <span>Masuk ke Aplikasi</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Divider -->
+                <div class="relative flex py-0.5 items-center">
+                    <div class="flex-grow border-t border-slate-200"></div>
+                    <span class="shrink mx-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">akses instan</span>
+                    <div class="flex-grow border-t border-slate-200"></div>
+                </div>
+
+                <!-- Opsi Akun Demo Cepat -->
+                <div class="space-y-2">
+                    <button type="button" onclick="handleDemoQuickLogin()" class="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+                        <span>Gunakan Akun Demo Cepat</span>
+                    </button>
+                    <p class="text-[11px] text-center text-slate-400">Sinkronisasi Google Drive tersedia di dalam menu aplikasi setelah Anda masuk.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- APLIKASI UTAMA (TERKUNCI / HIDDEN SEBELUM LOGIN BERHASIL) -->
+    <!-- ===================================================================== -->
+    <div id="mainAppWrapper" class="hidden flex-1 flex flex-col">
+
+        <!-- HEADER & PROFIL PENGGUNA -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+                <!-- Brand -->
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <div class="bg-blue-600 text-white p-2 rounded-xl shadow-sm">
+                        <i data-lucide="car-front" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                    </div>
+                    <div class="hidden sm:block">
+                        <div class="flex items-center gap-1.5">
+                            <h1 class="font-bold text-base text-slate-900 leading-tight">AutoLog</h1>
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">Cloud</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 hidden lg:block">Historis Perawatan Kendaraan</p>
+                    </div>
+                </div>
+
+                <!-- Controls: Car Selector, Sync to Google Drive, User Profile & Logout -->
+                <div class="flex items-center gap-2 sm:gap-2.5 overflow-x-auto py-1">
+                    <!-- Dropdown Pilih Mobil -->
+                    <div class="relative shrink-0">
+                        <select id="activeCarSelect" onchange="handleCarChange(this.value)" class="appearance-none bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-slate-800 text-xs sm:text-sm font-medium rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer max-w-[130px] sm:max-w-[200px] truncate">
+                            <!-- Options injected via JS -->
+                        </select>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    </div>
+
+                    <!-- Tombol Kelola Mobil -->
+                    <button onclick="openCarModal()" class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl border border-slate-200 transition flex items-center gap-1.5 text-xs sm:text-sm font-medium shrink-0" title="Kelola Daftar Mobil">
+                        <i data-lucide="car" class="w-4 h-4"></i>
+                        <span class="hidden xl:inline">Mobil</span>
+                    </button>
+
+                    <!-- Menu Sync to Google Drive -->
+                    <button onclick="openCloudModal()" id="headerCloudBtn" class="px-2.5 sm:px-3.5 py-2 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5 shrink-0 bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700" title="Buka Menu Sync to Google Drive">
+                        <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                        <i data-lucide="cloud" id="syncStatusIcon" class="w-4 h-4 text-slate-500"></i>
+                        <span id="syncStatusText" class="max-w-[155px] truncate">Sync to Google Drive</span>
+                    </button>
+
+                    <!-- Tombol Backup / Ekspor CSV & JSON -->
+                    <button onclick="openDataModal()" class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl border border-slate-200 transition flex items-center gap-1.5 text-xs font-medium shrink-0" title="Ekspor CSV & Backup JSON">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                    </button>
+
+                    <!-- Divider -->
+                    <div class="h-6 w-px bg-slate-200 mx-0.5 shrink-0"></div>
+
+                    <!-- Profil Pengguna Aktif -->
+                    <div class="flex items-center gap-2 pl-1.5 pr-1.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 shrink-0">
+                        <div id="headerUserInitial" class="w-7 h-7 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center uppercase">U</div>
+                        <div class="hidden sm:block text-left pr-1">
+                            <p id="headerUserName" class="text-xs font-bold text-slate-800 leading-none max-w-[110px] truncate">Pengguna</p>
+                            <p id="headerUserSessionBadge" class="text-[10px] text-slate-500 mt-0.5 leading-none max-w-[130px] truncate">Akun Lokal</p>
+                        </div>
+                        <button onclick="confirmLogout()" class="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Keluar (Logout)">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ================================================================= -->
+        <!-- MAIN CONTENT -->
+        <!-- ================================================================= -->
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+            <!-- Banner Info Mobil Aktif -->
+            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-start sm:items-center gap-4">
+                    <div class="bg-white/10 p-3.5 rounded-2xl backdrop-blur-xs border border-white/10 hidden sm:flex">
+                        <i data-lucide="car" class="w-8 h-8 text-blue-400"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2.5 flex-wrap">
+                            <h2 id="bannerCarName" class="text-xl sm:text-2xl font-bold tracking-tight">Memuat...</h2>
+                            <span id="bannerCarPlate" class="px-2.5 py-0.5 bg-white/15 border border-white/20 rounded-md text-xs font-mono font-semibold tracking-wider uppercase">---</span>
+                        </div>
+                        <p id="bannerCarDetails" class="text-slate-300 text-xs sm:text-sm mt-1">Tahun • Interval Service • Catatan</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2.5 self-start sm:self-center">
+                    <button id="quickSyncBtn" onclick="manualSyncNow()" class="hidden bg-white/10 hover:bg-white/20 text-white border border-white/15 font-medium text-xs sm:text-sm px-3.5 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer" title="Sinkronkan sekarang dengan Google Drive">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        <span class="hidden md:inline">Sync Drive</span>
+                    </button>
+                    <button onclick="openServiceModal()" class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Catat Service Baru</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Ringkasan (3 Kartu) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                <!-- Kartu 1: Total Pengeluaran -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-start justify-between">
+                    <div>
+                        <p class="text-xs sm:text-sm font-medium text-slate-500">Total Biaya Perawatan</p>
+                        <h3 id="statTotalCost" class="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5">Rp 0</h3>
+                        <p id="statTotalCount" class="text-xs text-slate-400 mt-1">Dari 0 catatan riwayat</p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i data-lucide="wallet" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Kartu 2: Jarak Tempuh Terakhir -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-start justify-between">
+                    <div>
+                        <p class="text-xs sm:text-sm font-medium text-slate-500">Odometer Terakhir</p>
+                        <h3 id="statLastOdometer" class="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5">0 km</h3>
+                        <p id="statLastServiceDate" class="text-xs text-slate-400 mt-1">Belum ada riwayat service</p>
+                    </div>
+                    <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                        <i data-lucide="gauge" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Kartu 3: Estimasi Jadwal Service Berikutnya -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-start justify-between">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <p class="text-xs sm:text-sm font-medium text-slate-500">Jadwal Service Berikutnya</p>
+                            <span id="nextServiceBadge" class="hidden text-[10px] font-semibold px-2 py-0.5 rounded-full"></span>
+                        </div>
+                        <h3 id="statNextService" class="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5">-</h3>
+                        <p id="statNextServiceNote" class="text-xs text-slate-400 mt-1">Berdasarkan interval mobil</p>
+                    </div>
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                        <i data-lucide="calendar-clock" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daftar Riwayat & Filter -->
+            <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="history" class="w-5 h-5 text-blue-600"></i>
+                        <span>Riwayat Perawatan &amp; Service</span>
+                    </h3>
+
+                    <!-- Controls: Search, Filter Kategori, Urutkan -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <!-- Search Input -->
+                        <div class="relative">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                            <input type="text" id="searchInput" oninput="renderServices()" placeholder="Cari bengkel, sparepart..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                        </div>
+
+                        <!-- Filter Kategori -->
+                        <div class="relative">
+                            <select id="categoryFilter" onchange="renderServices()" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl pl-3.5 pr-9 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition cursor-pointer">
+                                <option value="ALL">Semua Kategori</option>
+                                <option value="Ganti Oli">Ganti Oli</option>
+                                <option value="Tune Up">Tune Up</option>
+                                <option value="Rem">Rem</option>
+                                <option value="Ban">Ban &amp; Spooring</option>
+                                <option value="AC">AC</option>
+                                <option value="Kelistrikan">Kelistrikan</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                            <i data-lucide="filter" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+
+                        <!-- Urutkan -->
+                        <div class="relative">
+                            <select id="sortFilter" onchange="renderServices()" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl pl-3.5 pr-9 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition cursor-pointer">
+                                <option value="DATE_DESC">Urutkan: Terbaru</option>
+                                <option value="DATE_ASC">Urutkan: Terlama</option>
+                                <option value="COST_DESC">Urutkan: Biaya Tertinggi</option>
+                                <option value="ODO_DESC">Urutkan: Odometer Tertinggi</option>
+                            </select>
+                            <i data-lucide="arrow-up-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Container Kartu Riwayat -->
+                <div id="serviceListContainer" class="space-y-3 pt-1">
+                    <!-- Service items injected via JS -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-slate-200 py-5 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+                <p>&copy; 2026 AutoLog Cloud — Pencatatan Historis Service Mobil.</p>
+                <div class="flex items-center gap-4">
+                    <button onclick="openCloudModal()" class="hover:text-blue-600 underline transition">Sync to Google Drive</button>
+                    <button onclick="resetToDummyData()" class="hover:text-blue-600 underline transition">Muat Data Contoh</button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 1: SYNC TO GOOGLE DRIVE (KONFIGURASI & SINKRONISASI CLOUD) -->
+    <!-- ===================================================================== -->
+    <div id="cloudModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden my-8">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="cloud" class="w-5 h-5 text-blue-600"></i>
+                    <span>Sync to Google Drive</span>
+                </h3>
+                <button onclick="closeCloudModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
+                <!-- Status Koneksi Saat Ini -->
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <div class="flex items-start gap-3">
+                        <div id="modalCloudBadgeIcon" class="p-2.5 rounded-xl bg-slate-200 text-slate-600 shrink-0">
+                            <i data-lucide="cloud-off" class="w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 id="modalCloudStatusTitle" class="text-sm font-bold text-slate-800">Belum Terhubung ke Google Drive</h4>
+                            <p id="modalCloudStatusDesc" class="text-xs text-slate-500 mt-0.5">Hubungkan akun Google Anda untuk menyinkronkan database secara otomatis antar perangkat.</p>
+                            <div id="modalDriveMetaBox" class="hidden mt-2 pt-2 border-t border-slate-200/80 text-[11px] text-slate-600 space-y-0.5 font-mono">
+                                <p id="modalDriveAccountEmail">Akun: -</p>
+                                <p id="modalDriveFileInfo">File: autolog_service_data.json</p>
+                                <p id="modalDriveLastSync">Sinkronisasi Terakhir: -</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Aksi Cloud -->
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <button id="btnConnectGoogleDrive" onclick="connectGoogleDrive()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer">
+                            <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+                            <span>Hubungkan &amp; Login Google Drive</span>
+                        </button>
+                        <button id="btnManualSyncModal" onclick="manualSyncNow()" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+                            <span>Sync Sekarang (Upload ke Drive)</span>
+                        </button>
+                        <button id="btnPullFromDrive" onclick="pullFromDriveConfirm()" class="hidden px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
+                            <span>Tarik Data dari Drive (Restore)</span>
+                        </button>
+                        <button id="btnDisconnectDrive" onclick="disconnectGoogleDrive()" class="hidden px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="unlink" class="w-3.5 h-3.5"></i>
+                            <span>Putuskan Koneksi Drive</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Google OAuth Client ID -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">1. Google OAuth 2.0 Client ID</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="googleClientIdInput" placeholder="Contoh: 1234567890-abcxyz.apps.googleusercontent.com" class="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white">
+                        <button onclick="saveGoogleClientId()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl transition shrink-0 cursor-pointer">
+                            Simpan ID
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Aplikasi hanya meminta izin aman <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">drive.file</code> untuk mengelola file <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">autolog_service_data.json</code> miliknya sendiri.</p>
+                </div>
+
+                <!-- Panduan Setup Google Cloud Console & Authorized Origin -->
+                <div class="p-4 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-slate-700 space-y-2">
+                    <p class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i>
+                        <span>2. Panduan Setup Google Cloud Console (GitHub Pages):</span>
+                    </p>
+                    <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-600 leading-relaxed">
+                        <li>Buka <strong>Google Cloud Console</strong> &rarr; buat Project baru &rarr; aktifkan <strong>Google Drive API</strong>.</li>
+                        <li>Atur <strong>OAuth Consent Screen</strong> (External) dan tambahkan email Anda di <em>Test Users</em>.</li>
+                        <li>Buat <strong>Credentials &rarr; OAuth Client ID</strong> (tipe <em>Web application</em>).</li>
+                        <li>Masukkan URL Origin di bawah ini ke kolom <strong>Authorized JavaScript origins</strong>:</li>
+                    </ol>
+                    <div class="flex items-center gap-2 pt-1">
+                        <code id="detectedOriginBox" class="flex-1 bg-white border border-blue-200 px-2.5 py-1.5 rounded-lg text-[11px] font-mono text-blue-800 select-all truncate"></code>
+                        <button onclick="copyDetectedOrigin()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium shrink-0 cursor-pointer">Salin Origin</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2: TAMBAH / EDIT RIWAYAT SERVICE -->
+    <!-- ===================================================================== -->
+    <!-- JAVASCRIPT LOGIC: LOCAL AUTH GATE, GOOGLE DRIVE API V3 & TRACKER -->
+    <!-- ===================================================================== -->
+    <script>
+        // =====================================================================
+        // KONFIGURASI DEFAULT (Opsional: isi Client ID di sini jika ingin permanen di repo)
+        // =====================================================================
+        const DEFAULT_GOOGLE_CLIENT_ID = '';
+
+        // --- KONSTANTA PENYIMPANAN ---
+        const STORAGE_KEY = 'autolog_cloud_data_v2';
+        const CLIENT_ID_KEY = 'autolog_google_client_id';
+        const LOCAL_ACCOUNT_KEY = 'autolog_local_account_v1';
+        const ACTIVE_SESSION_KEY = 'autolog_active_session_v1';
+        const DRIVE_FILE_NAME = 'autolog_service_data.json';
+        const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file openid email profile';
+
+        // --- STATE SESI & PENGGUNA ---
+        let authSession = {
+            isAuthenticated: false,
+            mode: null, // 'local' | 'demo'
+            user: {
+                name: ''
+            }
+        };
+
+        let isLocalResetMode = false;
+
+        // --- STATE DATA APLIKASI ---
+        let appState = {
+            cars: [],
+            services: [],
+            activeCarId: null,
+            updatedAt: new Date().toISOString()
+        };
+
+        // --- STATE GOOGLE DRIVE ---
+        let driveState = {
+            clientId: localStorage.getItem(CLIENT_ID_KEY) || DEFAULT_GOOGLE_CLIENT_ID,
+            tokenClient: null,
+            accessToken: null,
+            fileId: null,
+            driveEmail: '',
+            isConnected: false,
+            lastSyncTime: null,
+            syncDebounceTimer: null
+        };
+
+        // --- DATA CONTOH (DUMMY DATA) ---
+        const getDummyData = () => {
+            const car1Id = 'car-demo-1';
+            const car2Id = 'car-demo-2';
+            return {
+                activeCarId: car1Id,
+                updatedAt: new Date().toISOString(),
+                cars: [
+                    {
+                        id: car1Id,
+                        brand: 'Toyota',
+                        model: 'Innova Zenix Hybrid',
+                        year: 2023,
+                        plate: 'B 1842 ZNX',
+                        intervalKm: 10000,
+                        notes: 'Attitude Black • Matic e-CVT'
+                    },
+                    {
+                        id: car2Id,
+                        brand: 'Honda',
+                        model: 'Brio RS',
+                        year: 2021,
+                        plate: 'D 1490 KLA',
+                        intervalKm: 5000,
+                        notes: 'Phoenix Orange • Matic CVT'
+                    }
+                ],
+                services: [
+                    {
+                        id: 'srv-101',
+                        carId: car1Id,
+                        date: '2026-09-12',
+                        odometer: 30150,
+                        category: 'Ganti Oli',
+                        workshop: 'Auto2000 Raden Intan',
+                        items: 'Oli TMO Full Synthetic 0W-20 (4.5L), Filter Oli, Gasket Drain Plug, Jasa Servis Berkala 30.000 km',
+                        cost: 1450000,
+                        nextKm: 40000,
+                        notes: 'Kondisi baterai hybrid normal 98%, tekanan ban disesuaikan 33 psi.'
+                    },
+                    {
+                        id: 'srv-102',
+                        carId: car1Id,
+                        date: '2026-04-05',
+                        odometer: 20400,
+                        category: 'Ban',
+                        workshop: 'Nawilis Spooring & Balancing',
+                        items: 'Spooring 3D, Balancing 4 Roda, Rotasi Ban Silang, Isi Nitrogen',
+                        cost: 425000,
+                        nextKm: 30000,
+                        notes: 'Ketebalan ban masih 75%.'
+                    },
+                    {
+                        id: 'srv-103',
+                        carId: car1Id,
+                        date: '2025-11-18',
+                        odometer: 10200,
+                        category: 'Tune Up',
+                        workshop: 'Auto2000 Raden Intan',
+                        items: 'Oli Mesin 0W-20, Filter Oli, Pembersihan Filter Udara & Filter AC',
+                        cost: 1120000,
+                        nextKm: 20000,
+                        notes: 'Servis berkala 10.000 km.'
+                    },
+                    {
+                        id: 'srv-201',
+                        carId: car2Id,
+                        date: '2026-08-20',
+                        odometer: 52300,
+                        category: 'Rem',
+                        workshop: 'Honda Bandung Center',
+                        items: 'Kampas Rem Depan (Brake Pad Set), Minyak Rem DOT 4, Bubut Piringan Cakram',
+                        cost: 1280000,
+                        nextKm: 57300,
+                        notes: 'Kampas rem belakang masih aman.'
+                    },
+                    {
+                        id: 'srv-202',
+                        carId: car2Id,
+                        date: '2026-02-10',
+                        odometer: 45100,
+                        category: 'AC',
+                        workshop: 'Denso AC Mobil Spesialis',
+                        items: 'Flushing Oli Kompresor AC, Isi Freon R134a, Ganti Filter Kabin Karbon',
+                        cost: 650000,
+                        nextKm: 50000,
+                        notes: 'Suhu hembusan AC kembali dingin 6°C.'
+                    }
+                ]
+            };
+        };
+
+        // =====================================================================
+        // LOGIKA AUTHENTICATION GATE (KHUSUS AKUN LOKAL & DEMO CEPAT)
+        // =====================================================================
+        function simpleHash(str) {
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+            }
+            return 'h_' + (hash >>> 0).toString(16);
+        }
+
+        function showAuthAlert(msg) {
+            const box = document.getElementById('authAlertBox');
+            document.getElementById('authAlertText').textContent = msg;
+            box.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function hideAuthAlert() {
+            document.getElementById('authAlertBox').classList.add('hidden');
+        }
+
+        function setupLocalAuthUI() {
+            const savedAccRaw = localStorage.getItem(LOCAL_ACCOUNT_KEY);
+            const heading = document.getElementById('localAuthHeading');
+            const toggleBtn = document.getElementById('toggleLocalModeBtn');
+            const nameWrapper = document.getElementById('localNameFieldWrapper');
+            const nameInput = document.getElementById('localUserNameInput');
+            const submitBtn = document.getElementById('localAuthSubmitBtn');
+
+            if (savedAccRaw && !isLocalResetMode) {
+                const acc = JSON.parse(savedAccRaw);
+                heading.textContent = `Masuk sebagai ${acc.name}`;
+                toggleBtn.textContent = 'Buat / Reset PIN';
+                nameWrapper.classList.add('hidden');
+                nameInput.required = false;
+                submitBtn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Buka Kunci &amp; Masuk</span>';
+            } else {
+                heading.textContent = savedAccRaw ? 'Reset Akun & PIN Lokal' : 'Buat Akun Lokal Baru';
+                toggleBtn.textContent = savedAccRaw ? 'Batal Reset' : '';
+                nameWrapper.classList.remove('hidden');
+                nameInput.required = true;
+                submitBtn.innerHTML = '<i data-lucide="user-plus" class="w-4 h-4"></i><span>Simpan PIN &amp; Masuk</span>';
+            }
+            lucide.createIcons();
+        }
+
+        function toggleLocalAuthSetupMode() {
+            isLocalResetMode = !isLocalResetMode;
+            hideAuthAlert();
+            document.getElementById('localPinInput').value = '';
+            setupLocalAuthUI();
+        }
+
+        function handleLocalAuthSubmit(e) {
+            e.preventDefault();
+            hideAuthAlert();
+            const savedAccRaw = localStorage.getItem(LOCAL_ACCOUNT_KEY);
+            const pinVal = document.getElementById('localPinInput').value.trim();
+
+            if (pinVal.length < 4) {
+                showAuthAlert('PIN atau kata sandi minimal 4 karakter.');
+                return;
+            }
+
+            if (savedAccRaw && !isLocalResetMode) {
+                const acc = JSON.parse(savedAccRaw);
+                if (simpleHash(pinVal) !== acc.pinHash) {
+                    showAuthAlert('PIN atau kata sandi salah. Silakan periksa kembali atau klik "Buat / Reset PIN".');
+                    return;
+                }
+                enterApplication({
+                    isAuthenticated: true,
+                    mode: 'local',
+                    user: { name: acc.name }
+                });
+                showToast(`Selamat datang kembali, ${acc.name}!`);
+            } else {
+                const nameVal = document.getElementById('localUserNameInput').value.trim() || 'Pengguna';
+                const newAcc = {
+                    name: nameVal,
+                    pinHash: simpleHash(pinVal),
+                    createdAt: new Date().toISOString()
+                };
+                localStorage.setItem(LOCAL_ACCOUNT_KEY, JSON.stringify(newAcc));
+                isLocalResetMode = false;
+                enterApplication({
+                    isAuthenticated: true,
+                    mode: 'local',
+                    user: { name: newAcc.name }
+                });
+                showToast('Akun lokal berhasil disimpan!');
+            }
+        }
+
+        function handleDemoQuickLogin() {
+            hideAuthAlert();
+            enterApplication({
+                isAuthenticated: true,
+                mode: 'demo',
+                user: { name: 'Pengguna Demo' }
+            });
+            showToast('Masuk menggunakan Akun Demo Cepat');
+        }
+
+        // Masuk ke Aplikasi Setelah Autentikasi Valid
+        function enterApplication(sessionObj) {
+            authSession = sessionObj;
+            sessionStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(authSession));
+
+            document.getElementById('authGateScreen').classList.add('hidden');
+            document.getElementById('mainAppWrapper').classList.remove('hidden');
+
+            renderHeaderUserProfile();
+            loadLocalState();
+            renderAll();
+
+            if (driveState.isConnected) {
+                updateSyncStatusUI('synced', `Tersinkron (${driveState.lastSyncTime || 'Aktif'})`);
+            } else {
+                updateSyncStatusUI('offline', 'Sync to Google Drive');
+            }
+            updateCloudModalUI();
+        }
+
+        function renderHeaderUserProfile() {
+            const nameEl = document.getElementById('headerUserName');
+            const badgeEl = document.getElementById('headerUserSessionBadge');
+            const initialEl = document.getElementById('headerUserInitial');
+
+            const u = authSession.user || { name: 'Pengguna' };
+            nameEl.textContent = u.name || 'Pengguna';
+            initialEl.textContent = (u.name || 'U').charAt(0).toUpperCase();
+
+            if (driveState.isConnected && driveState.driveEmail) {
+                badgeEl.textContent = driveState.driveEmail;
+                badgeEl.className = 'text-[10px] text-emerald-600 font-semibold mt-0.5 leading-none max-w-[130px] truncate';
+            } else if (authSession.mode === 'demo') {
+                badgeEl.textContent = 'Akun Demo';
+                badgeEl.className = 'text-[10px] text-amber-600 font-semibold mt-0.5 leading-none';
+            } else {
+                badgeEl.textContent = 'Akun Lokal';
+                badgeEl.className = 'text-[10px] text-slate-500 mt-0.5 leading-none';
+            }
+        }
+
+        function confirmLogout() {
+            openConfirmModal(
+                'Keluar dari Aplikasi?',
+                'Sesi Anda akan dikunci kembali ke halaman Gerbang Login.',
+                () => {
+                    performLogout();
+                },
+                null,
+                'Ya, Keluar',
+                'Batal',
+                'red'
+            );
+        }
+
+        function performLogout() {
+            if (driveState.accessToken && typeof google !== 'undefined') {
+                try {
+                    google.accounts.oauth2.revoke(driveState.accessToken, () => {});
+                } catch (e) {}
+            }
+            driveState.accessToken = null;
+            driveState.isConnected = false;
+            driveState.fileId = null;
+            driveState.driveEmail = '';
+            driveState.lastSyncTime = null;
+
+            authSession = { isAuthenticated: false, mode: null, user: { name: '' } };
+            sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+
+            document.getElementById('localPinInput').value = '';
+            hideAuthAlert();
+            setupLocalAuthUI();
+
+            document.getElementById('mainAppWrapper').classList.add('hidden');
+            document.getElementById('authGateScreen').classList.remove('hidden');
+            lucide.createIcons();
+            showToast('Anda telah keluar dan aplikasi terkunci');
+        }
+
+        // =====================================================================
+        // GOOGLE IDENTITY SERVICES (GIS) & GOOGLE DRIVE API V3 (MENU SYNC)
+        // =====================================================================
+        function initGoogleIdentityClient() {
+            if (!driveState.clientId) return false;
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+                return false;
+            }
+
+            try {
+                driveState.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: driveState.clientId,
+                    scope: DRIVE_SCOPES,
+                    callback: async (tokenResponse) => {
+                        if (tokenResponse.error) {
+                            console.error('OAuth Error:', tokenResponse);
+                            updateSyncStatusUI('error', 'Gagal Terhubung');
+                            showToast('Otorisasi Google Drive dibatalkan atau gagal.', 'error');
+                            return;
+                        }
+
+                        driveState.accessToken = tokenResponse.access_token;
+                        driveState.isConnected = true;
+
+                        // Ambil email akun Google untuk info koneksi
+                        try {
+                            const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                                headers: { 'Authorization': `Bearer ${driveState.accessToken}` }
+                            });
+                            if (userRes.ok) {
+                                const info = await userRes.json();
+                                driveState.driveEmail = info.email || 'Google Drive Terhubung';
+                            }
+                        } catch (e) {
+                            driveState.driveEmail = 'Google Drive Terhubung';
+                        }
+
+                        renderHeaderUserProfile();
+                        updateCloudModalUI();
+                        await initialDriveSync();
+                    }
+                });
+                return true;
+            } catch (err) {
+                console.error('Init GIS error:', err);
+                showToast('Format Google Client ID tidak valid.', 'error');
+                return false;
+            }
+        }
+
+        function connectGoogleDrive() {
+            const inputVal = document.getElementById('googleClientIdInput').value.trim();
+            if (inputVal && inputVal !== driveState.clientId) {
+                driveState.clientId = inputVal;
+                localStorage.setItem(CLIENT_ID_KEY, inputVal);
+                driveState.tokenClient = null;
+            }
+
+            if (!driveState.clientId) {
+                showToast('Masukkan & simpan Google OAuth 2.0 Client ID terlebih dahulu!', 'error');
+                document.getElementById('googleClientIdInput').focus();
+                return;
+            }
+
+            if (!driveState.tokenClient) {
+                const ok = initGoogleIdentityClient();
+                if (!ok) {
+                    showToast('Library Google sedang dimuat. Silakan coba 2 detik lagi.', 'error');
+                    return;
+                }
+            }
+
+            driveState.tokenClient.requestAccessToken({ prompt: 'select_account' });
+        }
+
+        function disconnectGoogleDrive() {
+            openConfirmModal(
+                'Putuskan Koneksi Google Drive?',
+                'Sinkronisasi otomatis ke Google Drive akan dihentikan. Data lokal di browser tetap aman.',
+                () => {
+                    if (driveState.accessToken && typeof google !== 'undefined') {
+                        try {
+                            google.accounts.oauth2.revoke(driveState.accessToken, () => {});
+                        } catch (e) {}
+                    }
+                    driveState.accessToken = null;
+                    driveState.isConnected = false;
+                    driveState.fileId = null;
+                    driveState.driveEmail = '';
+                    driveState.lastSyncTime = null;
+
+                    renderHeaderUserProfile();
+                    updateSyncStatusUI('offline', 'Sync to Google Drive');
+                    updateCloudModalUI();
+                    showToast('Koneksi Google Drive diputuskan');
+                }
+            );
+        }
+
+        function saveGoogleClientId() {
+            const inputVal = document.getElementById('googleClientIdInput').value.trim();
+            if (!inputVal) {
+                showToast('Masukkan Google OAuth Client ID terlebih dahulu', 'error');
+                return;
+            }
+            driveState.clientId = inputVal;
+            localStorage.setItem(CLIENT_ID_KEY, inputVal);
+            driveState.tokenClient = null;
+            initGoogleIdentityClient();
+            showToast('Google Client ID berhasil disimpan!');
+        }
+
+        async function initialDriveSync() {
+            updateSyncStatusUI('syncing', 'Menyinkronkan...');
+            try {
+                const existingFile = await findDriveFile();
+                if (!existingFile) {
+                    await createDriveFile();
+                    const nowStr = getCurrentTimeHHMM();
+                    driveState.lastSyncTime = nowStr;
+                    updateSyncStatusUI('synced', `Tersinkron (${nowStr})`);
+                    updateCloudModalUI();
+                    showToast('File autolog_service_data.json dibuat di Google Drive!');
+                } else {
+                    driveState.fileId = existingFile.id;
+                    const cloudData = await downloadDriveFile(existingFile.id);
+
+                    if (cloudData && Array.isArray(cloudData.cars) && Array.isArray(cloudData.services)) {
+                        const isLocalDefaultOnly = appState.cars.some(c => c.id.startsWith('car-demo-')) && appState.cars.length <= 2;
+                        const isCloudHasData = cloudData.cars.length > 0 || cloudData.services.length > 0;
+
+                        if (isLocalDefaultOnly && isCloudHasData) {
+                            appState = cloudData;
+                            if (appState.cars.length > 0 && !appState.cars.find(c => c.id === appState.activeCarId)) {
+                                appState.activeCarId = appState.cars[0].id;
+                            }
+                            saveLocalOnly();
+                            renderAll();
+                            const nowStr = getCurrentTimeHHMM();
+                            driveState.lastSyncTime = nowStr;
+                            updateSyncStatusUI('synced', `Tersinkron (${nowStr})`);
+                            updateCloudModalUI();
+                            showToast('Data berhasil dimuat dari Google Drive!');
+                        } else {
+                            openConfirmModal(
+                                'Data Ditemukan di Google Drive',
+                                `Ditemukan data tersimpan di Google Drive (${cloudData.cars.length} mobil, ${cloudData.services.length} riwayat). Gunakan data dari Drive atau timpa dengan data lokal?`,
+                                () => {
+                                    appState = cloudData;
+                                    if (appState.cars.length > 0 && !appState.cars.find(c => c.id === appState.activeCarId)) {
+                                        appState.activeCarId = appState.cars[0].id;
+                                    }
+                                    saveLocalOnly();
+                                    renderAll();
+                                    const nowStr = getCurrentTimeHHMM();
+                                    driveState.lastSyncTime = nowStr;
+                                    updateSyncStatusUI('synced', `Tersinkron (${nowStr})`);
+                                    updateCloudModalUI();
+                                    showToast('Data Google Drive diterapkan!');
+                                },
+                                async () => {
+                                    await pushToGoogleDrive();
+                                    showToast('Data lokal diunggah ke Google Drive!');
+                                },
+                                'Muat Data Drive',
+                                'Upload Data Lokal',
+                                'blue'
+                            );
+                        }
+                    } else {
+                        await pushToGoogleDrive();
+                    }
+                }
+            } catch (err) {
+                console.error('Initial Drive Sync Error:', err);
+                handleDriveApiError(err);
+            }
+        }
+
+        async function manualSyncNow() {
+            if (!driveState.isConnected || !driveState.accessToken) {
+                openCloudModal();
+                return;
+            }
+            updateSyncStatusUI('syncing', 'Menyinkronkan...');
+            await pushToGoogleDrive();
+            showToast('Data berhasil diunggah ke Google Drive');
+        }
+
+        async function pullFromDriveConfirm() {
+            if (!driveState.isConnected || !driveState.fileId) return;
+            openConfirmModal(
+                'Tarik Data dari Google Drive?',
+                'Data lokal di browser ini akan digantikan dengan versi yang tersimpan di Google Drive.',
+                async () => {
+                    updateSyncStatusUI('syncing', 'Mengunduh...');
+                    try {
+                        const cloudData = await downloadDriveFile(driveState.fileId);
+                        if (cloudData && Array.isArray(cloudData.cars)) {
+                            appState = cloudData;
+                            if (appState.cars.length > 0 && !appState.cars.find(c => c.id === appState.activeCarId)) {
+                                appState.activeCarId = appState.cars[0].id;
+                            }
+                            saveLocalOnly();
+                            renderAll();
+                            const nowStr = getCurrentTimeHHMM();
+                            driveState.lastSyncTime = nowStr;
+                            updateSyncStatusUI('synced', `Tersinkron (${nowStr})`);
+                            updateCloudModalUI();
+                            showToast('Data berhasil dipulihkan dari Google Drive');
+                        }
+                    } catch (err) {
+                        handleDriveApiError(err);
+                    }
+                }
+            );
+        }
+
+        async function findDriveFile() {
+            const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&spaces=drive`, {
+                headers: { 'Authorization': `Bearer ${driveState.accessToken}` }
+            });
+            if (!res.ok) throw { status: res.status, message: await res.text() };
+            const data = await res.json();
+            return (data.files && data.files.length > 0) ? data.files[0] : null;
+        }
+
+        async function downloadDriveFile(fileId) {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                headers: { 'Authorization': `Bearer ${driveState.accessToken}` }
+            });
+            if (!res.ok) throw { status: res.status, message: await res.text() };
+            return await res.json();
+        }
+
+        async function createDriveFile() {
+            const metadata = {
+                name: DRIVE_FILE_NAME,
+                mimeType: 'application/json',
+                description: 'Database Aplikasi Pencatatan Historis Service Mobil (AutoLog Cloud)'
+            };
+            const boundary = 'autolog_multipart_boundary_2026';
+            const body =
+                `--${boundary}\r\n` +
+                `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+                `${JSON.stringify(metadata)}\r\n` +
+                `--${boundary}\r\n` +
+                `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+                `${JSON.stringify(appState, null, 2)}\r\n` +
+                `--${boundary}--`;
+
+            const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${driveState.accessToken}`,
+                    'Content-Type': `multipart/related; boundary=${boundary}`
+                },
+                body: body
+            });
+            if (!res.ok) throw { status: res.status, message: await res.text() };
+            const created = await res.json();
+            driveState.fileId = created.id;
+        }
+
+        async function pushToGoogleDrive() {
+            if (!driveState.accessToken) return;
+            try {
+                if (!driveState.fileId) {
+                    const existing = await findDriveFile();
+                    if (existing) {
+                        driveState.fileId = existing.id;
+                    } else {
+                        await createDriveFile();
+                        const nowStr = getCurrentTimeHHMM();
+                        driveState.lastSyncTime = nowStr;
+                        updateSyncStatusUI('synced', `Tersinkron (${nowStr})`);
+                        updateCloudModalUI();
+                        return;
+                    }
+                }
+
+                const metadata = { name: DRIVE_FILE_NAME, mimeType: 'application/json' };
+                const boundary = 'autolog_patch_boundary_2026';
+                const body =
+                    `--${boundary}\r\n` +
+                    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+                    `${JSON.stringify(metadata)}\r\n` +
+                    `--${boundary}\r\n` +
+                    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+                    `${JSON.stringify(appState, null, 2)}\r\n` +
+                    `--${boundary}--`;
+
+                const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveState.fileId}?uploadType=multipart`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${driveState.accessToken}`,
+                        'Content-Type': `multipart/related; boundary=${boundary}`
+                    },
+                    body: body
+                });
+
+                if (!res.ok) throw { status: res.status, message: await res.text() };
+
+                const nowStr = getCurrentTimeHHMM();
+                driveState.lastSyncTime = nowStr;
+                updateSyncStatusUI('synced', `Tersinkron (${nowStr})`);
+                updateCloudModalUI();
+            } catch (err) {
+                console.error('Push to Drive error:', err);
+                handleDriveApiError(err);
+            }
+        }
+
+        function handleDriveApiError(err) {
+            if (err && err.status === 401) {
+                driveState.isConnected = false;
+                driveState.accessToken = null;
+                updateSyncStatusUI('error', 'Sesi Drive Habis');
+                updateCloudModalUI();
+                showToast('Sesi Google Drive kedaluwarsa. Klik menu Sync to Google Drive untuk menghubungkan ulang.', 'error');
+            } else {
+                updateSyncStatusUI('error', 'Gagal Sync');
+                showToast('Gagal menyinkronkan ke Google Drive.', 'error');
+            }
+        }
+
+        // --- PENYIMPANAN LOKAL & TRIGGER AUTO-SYNC ---
+        function loadLocalState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && Array.isArray(parsed.cars) && Array.isArray(parsed.services)) {
+                        appState = parsed;
+                        if (appState.cars.length > 0 && !appState.cars.find(c => c.id === appState.activeCarId)) {
+                            appState.activeCarId = appState.cars[0].id;
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('Gagal memuat localStorage:', e);
+            }
+            appState = getDummyData();
+            saveLocalOnly();
+        }
+
+        function saveLocalOnly() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+            } catch (e) {
+                showToast('Gagal menyimpan ke memori browser', 'error');
+            }
+        }
+
+        function commitDataChange() {
+            appState.updatedAt = new Date().toISOString();
+            saveLocalOnly();
+
+            if (driveState.isConnected && driveState.accessToken) {
+                updateSyncStatusUI('syncing', 'Menyinkronkan...');
+                clearTimeout(driveState.syncDebounceTimer);
+                driveState.syncDebounceTimer = setTimeout(() => {
+                    pushToGoogleDrive();
+                }, 1200);
+            }
+        }
+
+        // --- UPDATE TAMPILAN STATUS CLOUD ---
+        function updateSyncStatusUI(status, text) {
+            const btn = document.getElementById('headerCloudBtn');
+            const dot = document.getElementById('syncStatusDot');
+            const icon = document.getElementById('syncStatusIcon');
+            const label = document.getElementById('syncStatusText');
+            const quickBtn = document.getElementById('quickSyncBtn');
+
+            label.textContent = text;
+            btn.className = 'px-2.5 sm:px-3.5 py-2 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ';
+            dot.className = 'w-2 h-2 rounded-full ';
+
+            if (status === 'synced') {
+                btn.className += 'bg-emerald-50/80 hover:bg-emerald-100/80 border-emerald-200 text-emerald-800';
+                dot.className += 'bg-emerald-500';
+                icon.setAttribute('data-lucide', 'cloud-check');
+                icon.className = 'w-4 h-4 text-emerald-600';
+                quickBtn.classList.remove('hidden');
+            } else if (status === 'syncing') {
+                btn.className += 'bg-blue-50 border-blue-200 text-blue-700 animate-sync';
+                dot.className += 'bg-blue-500';
+                icon.setAttribute('data-lucide', 'refresh-cw');
+                icon.className = 'w-4 h-4 text-blue-600 animate-spin';
+            } else if (status === 'error') {
+                btn.className += 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700';
+                dot.className += 'bg-red-500';
+                icon.setAttribute('data-lucide', 'cloud-alert');
+                icon.className = 'w-4 h-4 text-red-600';
+                quickBtn.classList.add('hidden');
+            } else {
+                btn.className += 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700';
+                dot.className += 'bg-slate-400';
+                icon.setAttribute('data-lucide', 'cloud');
+                icon.className = 'w-4 h-4 text-blue-600';
+                quickBtn.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        function updateCloudModalUI() {
+            const titleEl = document.getElementById('modalCloudStatusTitle');
+            const descEl = document.getElementById('modalCloudStatusDesc');
+            const badgeIcon = document.getElementById('modalCloudBadgeIcon');
+            const metaBox = document.getElementById('modalDriveMetaBox');
+            const emailEl = document.getElementById('modalDriveAccountEmail');
+            const fileEl = document.getElementById('modalDriveFileInfo');
+            const lastSyncEl = document.getElementById('modalDriveLastSync');
+
+            const btnConnect = document.getElementById('btnConnectGoogleDrive');
+            const btnSync = document.getElementById('btnManualSyncModal');
+            const btnPull = document.getElementById('btnPullFromDrive');
+            const btnDisconnect = document.getElementById('btnDisconnectDrive');
+
+            if (driveState.isConnected) {
+                titleEl.textContent = 'Terhubung ke Google Drive';
+                descEl.textContent = 'Auto-sync aktif: setiap perubahan otomatis tersimpan ke cloud.';
+                badgeIcon.className = 'p-2.5 rounded-xl bg-emerald-100 text-emerald-600 shrink-0';
+                badgeIcon.innerHTML = '<i data-lucide="cloud-check" class="w-5 h-5"></i>';
+
+                metaBox.classList.remove('hidden');
+                emailEl.textContent = `Akun Google: ${driveState.driveEmail || 'Terhubung'}`;
+                fileEl.textContent = `File: ${DRIVE_FILE_NAME}${driveState.fileId ? ' (ID: ' + driveState.fileId.slice(0, 12) + '...)' : ''}`;
+                lastSyncEl.textContent = `Sinkronisasi Terakhir: ${driveState.lastSyncTime || 'Baru saja'}`;
+
+                btnConnect.classList.add('hidden');
+                btnSync.classList.remove('hidden');
+                btnPull.classList.remove('hidden');
+                btnDisconnect.classList.remove('hidden');
+            } else {
+                titleEl.textContent = 'Belum Terhubung ke Google Drive';
+                descEl.textContent = 'Masukkan Client ID Anda di bawah lalu klik Hubungkan untuk mulai sinkronisasi cloud.';
+                badgeIcon.className = 'p-2.5 rounded-xl bg-slate-200 text-slate-600 shrink-0';
+                badgeIcon.innerHTML = '<i data-lucide="cloud-off" class="w-5 h-5"></i>';
+
+                metaBox.classList.add('hidden');
+                btnConnect.classList.remove('hidden');
+                btnSync.classList.add('hidden');
+                btnPull.classList.add('hidden');
+                btnDisconnect.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        function openCloudModal() {
+            document.getElementById('googleClientIdInput').value = driveState.clientId;
+            const origin = window.location.origin === 'null' ? 'http://localhost' : window.location.origin;
+            document.getElementById('detectedOriginBox').textContent = origin;
+            updateCloudModalUI();
+            document.getElementById('cloudModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeCloudModal() {
+            document.getElementById('cloudModal').classList.add('hidden');
+        }
+
+        function copyDetectedOrigin() {
+            const originText = window.location.origin;
+            const tempInput = document.createElement('input');
+            tempInput.value = originText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('URL Origin disalin: ' + originText);
+        }
+
+        // =====================================================================
+        // FORMATTER & UTILITAS
+        // =====================================================================
+        function getCurrentTimeHHMM() {
+            return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatRupiah(num) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(num || 0);
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('id-ID').format(num || 0);
+        }
+
+        function formatDateIndo(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function getCategoryBadgeStyle(category) {
+            const styles = {
+                'Ganti Oli': { bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'droplet' },
+                'Tune Up': { bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'wrench' },
+                'Rem': { bg: 'bg-red-50 text-red-700 border-red-200', icon: 'disc' },
+                'Ban': { bg: 'bg-slate-100 text-slate-700 border-slate-300', icon: 'circle-dot' },
+                'AC': { bg: 'bg-cyan-50 text-cyan-700 border-cyan-200', icon: 'snowflake' },
+                'Kelistrikan': { bg: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: 'zap' },
+                'Lainnya': { bg: 'bg-purple-50 text-purple-700 border-purple-200', icon: 'sparkles' }
+            };
+            return styles[category] || styles['Lainnya'];
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // =====================================================================
+        // RENDER DASHBOARD & DAFTAR RIWAYAT
+        // =====================================================================
+        function renderAll() {
+            renderCarSelector();
+            renderActiveCarBanner();
+            renderDashboardStats();
+            renderServices();
+            lucide.createIcons();
+        }
+
+        function renderCarSelector() {
+            const select = document.getElementById('activeCarSelect');
+            select.innerHTML = '';
+
+            if (appState.cars.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Belum ada mobil';
+                select.appendChild(opt);
+                return;
+            }
+
+            appState.cars.forEach(car => {
+                const opt = document.createElement('option');
+                opt.value = car.id;
+                opt.textContent = `${car.brand} ${car.model} (${car.plate})`;
+                if (car.id === appState.activeCarId) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderActiveCarBanner() {
+            const car = appState.cars.find(c => c.id === appState.activeCarId);
+            const nameEl = document.getElementById('bannerCarName');
+            const plateEl = document.getElementById('bannerCarPlate');
+            const detailsEl = document.getElementById('bannerCarDetails');
+
+            if (!car) {
+                nameEl.textContent = 'Belum Ada Kendaraan Terdaftar';
+                plateEl.textContent = 'KOSONG';
+                detailsEl.textContent = 'Klik ikon mobil di bagian atas untuk menambahkan kendaraan pertama Anda.';
+                return;
+            }
+
+            const interval = car.intervalKm || 10000;
+            nameEl.textContent = `${car.brand} ${car.model}`;
+            plateEl.textContent = car.plate;
+            detailsEl.textContent = `Tahun ${car.year} • Interval Service ${formatNumber(interval)} km${car.notes ? ' • ' + car.notes : ''}`;
+        }
+
+        function renderDashboardStats() {
+            const car = appState.cars.find(c => c.id === appState.activeCarId);
+            const carServices = appState.services
+                .filter(s => s.carId === appState.activeCarId)
+                .sort((a, b) => new Date(b.date) - new Date(a.date) || Number(b.odometer) - Number(a.odometer));
+
+            const totalCost = carServices.reduce((sum, item) => sum + Number(item.cost || 0), 0);
+            document.getElementById('statTotalCost').textContent = formatRupiah(totalCost);
+            document.getElementById('statTotalCount').textContent = `Dari ${carServices.length} catatan riwayat`;
+
+            const badgeEl = document.getElementById('nextServiceBadge');
+
+            if (carServices.length === 0) {
+                document.getElementById('statLastOdometer').textContent = '0 km';
+                document.getElementById('statLastServiceDate').textContent = 'Belum ada riwayat service';
+                document.getElementById('statNextService').textContent = '-';
+                document.getElementById('statNextServiceNote').textContent = 'Catat service pertama untuk estimasi';
+                badgeEl.classList.add('hidden');
+            } else {
+                const maxOdoRecord = carServices.reduce((prev, curr) => (Number(curr.odometer) > Number(prev.odometer) ? curr : prev));
+                const latestDateRecord = carServices[0];
+                const interval = (car && car.intervalKm) ? Number(car.intervalKm) : 10000;
+
+                document.getElementById('statLastOdometer').textContent = `${formatNumber(maxOdoRecord.odometer)} km`;
+                document.getElementById('statLastServiceDate').textContent = `Tercatat pada ${formatDateIndo(latestDateRecord.date)}`;
+
+                const targetKm = latestDateRecord.nextKm ? Number(latestDateRecord.nextKm) : Number(maxOdoRecord.odometer) + interval;
+                const nextDateObj = new Date(latestDateRecord.date);
+                nextDateObj.setMonth(nextDateObj.getMonth() + 6);
+                const nextDateStr = nextDateObj.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+
+                document.getElementById('statNextService').textContent = `${formatNumber(targetKm)} km`;
+                document.getElementById('statNextServiceNote').textContent = `Atau sekitar ${nextDateStr} (mana lebih dulu)`;
+
+                const today = new Date();
+                const diffDays = Math.ceil((nextDateObj - today) / (1000 * 60 * 60 * 24));
+                badgeEl.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-700', 'bg-amber-100', 'text-amber-700', 'bg-red-100', 'text-red-700');
+
+                if (diffDays < 0) {
+                    badgeEl.textContent = 'Lewat Jadwal';
+                    badgeEl.classList.add('bg-red-100', 'text-red-700');
+                } else if (diffDays <= 30) {
+                    badgeEl.textContent = 'Segera';
+                    badgeEl.classList.add('bg-amber-100', 'text-amber-700');
+                } else {
+                    badgeEl.textContent = 'Terjadwal';
+                    badgeEl.classList.add('bg-emerald-100', 'text-emerald-700');
+                }
+            }
+        }
+
+        function renderServices() {
+            const container = document.getElementById('serviceListContainer');
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const sortFilter = document.getElementById('sortFilter').value;
+
+            if (!appState.activeCarId) {
+                container.innerHTML = `
+                    <div class="text-center py-12 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <i data-lucide="car" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
+                        <h4 class="text-sm font-semibold text-slate-700">Belum ada mobil dipilih</h4>
+                        <p class="text-xs text-slate-500 mt-1 mb-4">Silakan tambahkan profil mobil terlebih dahulu untuk mulai mencatat riwayat service.</p>
+                        <button onclick="openCarModal()" class="px-4 py-2 bg-blue-600 text-white text-xs font-medium rounded-xl hover:bg-blue-700 transition">Tambah Profil Mobil</button>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            let filtered = appState.services.filter(s => s.carId === appState.activeCarId);
+
+            if (categoryFilter !== 'ALL') {
+                filtered = filtered.filter(s => s.category === categoryFilter);
+            }
+
+            if (searchQuery) {
+                filtered = filtered.filter(s =>
+                    (s.workshop && s.workshop.toLowerCase().includes(searchQuery)) ||
+                    (s.items && s.items.toLowerCase().includes(searchQuery)) ||
+                    (s.notes && s.notes.toLowerCase().includes(searchQuery)) ||
+                    (s.category && s.category.toLowerCase().includes(searchQuery))
+                );
+            }
+
+            filtered.sort((a, b) => {
+                if (sortFilter === 'DATE_ASC') return new Date(a.date) - new Date(b.date);
+                if (sortFilter === 'COST_DESC') return Number(b.cost) - Number(a.cost);
+                if (sortFilter === 'ODO_DESC') return Number(b.odometer) - Number(a.odometer);
+                return new Date(b.date) - new Date(a.date) || Number(b.odometer) - Number(a.odometer);
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <i data-lucide="clipboard-list" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
+                        <h4 class="text-sm font-semibold text-slate-700">Tidak ada riwayat service ditemukan</h4>
+                        <p class="text-xs text-slate-500 mt-1">Coba ubah filter pencarian atau klik "Catat Service Baru" di atas.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = filtered.map(srv => {
+                const badge = getCategoryBadgeStyle(srv.category);
+                return `
+                    <div class="group bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 sm:p-5 transition shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="space-y-2 flex-1">
+                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold border ${badge.bg}">
+                                    <i data-lucide="${badge.icon}" class="w-3.5 h-3.5"></i>
+                                    ${escapeHTML(srv.category)}
+                                </span>
+                                <span class="inline-flex items-center gap-1 text-slate-600 font-medium bg-slate-100 px-2.5 py-1 rounded-lg">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400"></i>
+                                    ${formatDateIndo(srv.date)}
+                                </span>
+                                <span class="inline-flex items-center gap-1 text-slate-600 font-medium bg-slate-100 px-2.5 py-1 rounded-lg">
+                                    <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-400"></i>
+                                    ${formatNumber(srv.odometer)} km
+                                </span>
+                            </div>
+
+                            <div>
+                                <h4 class="font-bold text-slate-900 text-base">${escapeHTML(srv.workshop)}</h4>
+                                <p class="text-sm text-slate-600 mt-0.5 leading-relaxed">${escapeHTML(srv.items)}</p>
+                            </div>
+
+                            ${srv.notes ? `
+                                <div class="flex items-start gap-1.5 text-xs text-slate-500 bg-slate-100/70 p-2 rounded-lg">
+                                    <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5"></i>
+                                    <span>${escapeHTML(srv.notes)}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="flex md:flex-col items-center md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 gap-3 shrink-0">
+                            <div class="text-left md:text-right">
+                                <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">Total Biaya</span>
+                                <span class="text-lg font-bold text-slate-900">${formatRupiah(srv.cost)}</span>
+                            </div>
+
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="openServiceModal('${srv.id}')" class="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl border border-slate-200 bg-white transition" title="Edit Riwayat">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="confirmDeleteService('${srv.id}')" class="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl border border-slate-200 bg-white transition" title="Hapus Riwayat">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // =====================================================================
+        // CRUD PROFIL MOBIL
+        // =====================================================================
+        function handleCarChange(carId) {
+            appState.activeCarId = carId;
+            commitDataChange();
+            renderAll();
+        }
+
+        function openCarModal() {
+            resetCarForm();
+            renderCarListModal();
+            document.getElementById('carModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeCarModal() {
+            document.getElementById('carModal').classList.add('hidden');
+        }
+
+        function renderCarListModal() {
+            const container = document.getElementById('carListContainer');
+            if (appState.cars.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">Belum ada kendaraan tersimpan.</p>`;
+                return;
+            }
+
+            container.innerHTML = appState.cars.map(car => {
+                const isSelected = car.id === appState.activeCarId;
+                const count = appState.services.filter(s => s.carId === car.id).length;
+                return `
+                    <div class="flex items-center justify-between p-3 rounded-xl border ${isSelected ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'}">
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-sm text-slate-900">${escapeHTML(car.brand)} ${escapeHTML(car.model)}</span>
+                                <span class="text-[11px] font-mono bg-slate-200/70 px-1.5 py-0.5 rounded text-slate-700 font-semibold">${escapeHTML(car.plate)}</span>
+                                ${isSelected ? '<span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-medium">Aktif</span>' : ''}
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Tahun ${car.year} • Interval ${formatNumber(car.intervalKm || 10000)} km • ${count} catatan</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${!isSelected ? `<button onclick="selectCarFromModal('${car.id}')" class="px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition">Pilih</button>` : ''}
+                            <button onclick="editCarProfile('${car.id}')" class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition" title="Edit Mobil">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="confirmDeleteCar('${car.id}')" class="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus Mobil">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function selectCarFromModal(carId) {
+            appState.activeCarId = carId;
+            commitDataChange();
+            renderCarListModal();
+            renderAll();
+            showToast('Profil mobil aktif diganti');
+        }
+
+        function saveCarProfile(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editCarId').value;
+            const brand = document.getElementById('carBrand').value.trim();
+            const model = document.getElementById('carModel').value.trim();
+            const year = Number(document.getElementById('carYear').value);
+            const plate = document.getElementById('carPlate').value.trim().toUpperCase();
+            const intervalKm = Number(document.getElementById('carInterval').value) || 10000;
+            const notes = document.getElementById('carNotes').value.trim();
+
+            if (editId) {
+                const idx = appState.cars.findIndex(c => c.id === editId);
+                if (idx !== -1) {
+                    appState.cars[idx] = { ...appState.cars[idx], brand, model, year, plate, intervalKm, notes };
+                    showToast('Profil mobil diperbarui');
+                }
+            } else {
+                const newCar = {
+                    id: 'car-' + Date.now(),
+                    brand, model, year, plate, intervalKm, notes
+                };
+                appState.cars.push(newCar);
+                appState.activeCarId = newCar.id;
+                showToast('Mobil baru ditambahkan');
+            }
+
+            commitDataChange();
+            resetCarForm();
+            renderCarListModal();
+            renderAll();
+        }
+
+        function editCarProfile(carId) {
+            const car = appState.cars.find(c => c.id === carId);
+            if (!car) return;
+            document.getElementById('carFormTitle').textContent = 'Edit Profil Mobil';
+            document.getElementById('editCarId').value = car.id;
+            document.getElementById('carBrand').value = car.brand;
+            document.getElementById('carModel').value = car.model;
+            document.getElementById('carYear').value = car.year;
+            document.getElementById('carPlate').value = car.plate;
+            document.getElementById('carInterval').value = car.intervalKm || 10000;
+            document.getElementById('carNotes').value = car.notes || '';
+            document.getElementById('cancelEditCarBtn').classList.remove('hidden');
+        }
+
+        function resetCarForm() {
+            document.getElementById('carForm').reset();
+            document.getElementById('editCarId').value = '';
+            document.getElementById('carInterval').value = '10000';
+            document.getElementById('carFormTitle').textContent = 'Tambah Mobil Baru';
+            document.getElementById('cancelEditCarBtn').classList.add('hidden');
+        }
+
+        function confirmDeleteCar(carId) {
+            const car = appState.cars.find(c => c.id === carId);
+            if (!car) return;
+            openConfirmModal(
+                'Hapus Profil Mobil?',
+                `Mobil "${car.brand} ${car.model} (${car.plate})" beserta seluruh riwayat service-nya akan dihapus permanen.`,
+                () => {
+                    appState.cars = appState.cars.filter(c => c.id !== carId);
+                    appState.services = appState.services.filter(s => s.carId !== carId);
+                    if (appState.activeCarId === carId) {
+                        appState.activeCarId = appState.cars.length > 0 ? appState.cars[0].id : null;
+                    }
+                    commitDataChange();
+                    renderCarListModal();
+                    renderAll();
+                    showToast('Profil mobil dihapus');
+                }
+            );
+        }
+
+        // =====================================================================
+        // CRUD RIWAYAT SERVICE
+        // =====================================================================
+        function openServiceModal(serviceId = null) {
+            if (!appState.activeCarId) {
+                showToast('Tambahkan profil mobil terlebih dahulu!', 'error');
+                openCarModal();
+                return;
+            }
+
+            const form = document.getElementById('serviceForm');
+            form.reset();
+            document.getElementById('serviceId').value = '';
+
+            if (serviceId) {
+                const srv = appState.services.find(s => s.id === serviceId);
+                if (srv) {
+                    document.getElementById('serviceModalTitle').textContent = 'Edit Riwayat Service';
+                    document.getElementById('serviceId').value = srv.id;
+                    document.getElementById('serviceDate').value = srv.date;
+                    document.getElementById('serviceOdometer').value = srv.odometer;
+                    document.getElementById('serviceCategory').value = srv.category;
+                    document.getElementById('serviceCost').value = srv.cost;
+                    document.getElementById('serviceWorkshop').value = srv.workshop;
+                    document.getElementById('serviceItems').value = srv.items;
+                    document.getElementById('serviceNextKm').value = srv.nextKm || '';
+                    document.getElementById('serviceNotes').value = srv.notes || '';
+                }
+            } else {
+                document.getElementById('serviceModalTitle').textContent = 'Catat Riwayat Service';
+                document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
+            }
+
+            document.getElementById('serviceModal').classList.remove('hidden');
+        }
+
+        function closeServiceModal() {
+            document.getElementById('serviceModal').classList.add('hidden');
+        }
+
+        function saveServiceRecord(e) {
+            e.preventDefault();
+            const car = appState.cars.find(c => c.id === appState.activeCarId);
+            const defaultInterval = (car && car.intervalKm) ? Number(car.intervalKm) : 10000;
+
+            const id = document.getElementById('serviceId').value;
+            const date = document.getElementById('serviceDate').value;
+            const odometer = Number(document.getElementById('serviceOdometer').value);
+            const category = document.getElementById('serviceCategory').value;
+            const cost = Number(document.getElementById('serviceCost').value);
+            const workshop = document.getElementById('serviceWorkshop').value.trim();
+            const items = document.getElementById('serviceItems').value.trim();
+            const nextKmInput = document.getElementById('serviceNextKm').value;
+            const nextKm = nextKmInput ? Number(nextKmInput) : odometer + defaultInterval;
+            const notes = document.getElementById('serviceNotes').value.trim();
+
+            if (id) {
+                const idx = appState.services.findIndex(s => s.id === id);
+                if (idx !== -1) {
+                    appState.services[idx] = {
+                        ...appState.services[idx],
+                        date, odometer, category, cost, workshop, items, nextKm, notes
+                    };
+                    showToast('Catatan service diperbarui');
+                }
+            } else {
+                appState.services.push({
+                    id: 'srv-' + Date.now(),
+                    carId: appState.activeCarId,
+                    date, odometer, category, cost, workshop, items, nextKm, notes
+                });
+                showToast('Catatan service baru tersimpan');
+            }
+
+            commitDataChange();
+            closeServiceModal();
+            renderAll();
+        }
+
+        function confirmDeleteService(serviceId) {
+            openConfirmModal(
+                'Hapus Riwayat Service?',
+                'Catatan perawatan ini akan dihapus dari riwayat kendaraan Anda.',
+                () => {
+                    appState.services = appState.services.filter(s => s.id !== serviceId);
+                    commitDataChange();
+                    renderAll();
+                    showToast('Riwayat service dihapus');
+                }
+            );
+        }
+
+        // =====================================================================
+        // EKSPOR CSV / JSON & RESET DATA
+        // =====================================================================
+        function openDataModal() {
+            document.getElementById('dataModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeDataModal() {
+            document.getElementById('dataModal').classList.add('hidden');
+        }
+
+        function exportDataJSON() {
+            const dataStr = JSON.stringify(appState, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const dateTag = new Date().toISOString().split('T')[0];
+            a.href = url;
+            a.download = `AutoLog_Backup_${dateTag}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('File backup JSON diunduh');
+        }
+
+        function exportDataCSV() {
+            if (appState.services.length === 0) {
+                showToast('Tidak ada data riwayat untuk diekspor', 'error');
+                return;
+            }
+
+            const headers = ['Merk Mobil', 'Model', 'Plat Nomor', 'Tanggal', 'Odometer (km)', 'Kategori', 'Bengkel', 'Rincian Item', 'Biaya (Rp)', 'Catatan'];
+            const rows = appState.services.map(srv => {
+                const car = appState.cars.find(c => c.id === srv.carId) || { brand: '-', model: '-', plate: '-' };
+                return [
+                    car.brand, car.model, car.plate, srv.date, srv.odometer,
+                    srv.category, srv.workshop, srv.items, srv.cost, srv.notes || ''
+                ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+            });
+
+            const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const dateTag = new Date().toISOString().split('T')[0];
+            a.href = url;
+            a.download = `Riwayat_Service_Mobil_${dateTag}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('File CSV berhasil diunduh');
+        }
+
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported && Array.isArray(imported.cars) && Array.isArray(imported.services)) {
+                        appState = imported;
+                        if (appState.cars.length > 0 && !appState.cars.find(c => c.id === appState.activeCarId)) {
+                            appState.activeCarId = appState.cars[0].id;
+                        }
+                        commitDataChange();
+                        renderAll();
+                        closeDataModal();
+                        showToast('Data backup berhasil dipulihkan!');
+                    } else {
+                        showToast('Format file JSON tidak valid', 'error');
+                    }
+                } catch (err) {
+                    showToast('Gagal membaca file JSON', 'error');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function confirmClearAllData() {
+            closeDataModal();
+            openConfirmModal(
+                'Kosongkan Semua Data?',
+                'Seluruh daftar mobil dan riwayat service akan dihapus bersih.',
+                () => {
+                    appState = { cars: [], services: [], activeCarId: null, updatedAt: new Date().toISOString() };
+                    commitDataChange();
+                    renderAll();
+                    showToast('Semua data telah dikosongkan');
+                }
+            );
+        }
+
+        function resetToDummyData() {
+            openConfirmModal(
+                'Muat Data Contoh?',
+                'Data saat ini akan diganti dengan data contoh bawaan aplikasi.',
+                () => {
+                    appState = getDummyData();
+                    commitDataChange();
+                    renderAll();
+                    showToast('Data contoh berhasil dimuat');
+                }
+            );
+        }
+
+        // =====================================================================
+        // MODAL KONFIRMASI KUSTOM & TOAST NOTIFICATION
+        // =====================================================================
+        let pendingConfirmCallback = null;
+        let pendingCancelCallback = null;
+
+        function openConfirmModal(title, message, onConfirm, onCancel = null, confirmLabel = 'Ya, Lanjutkan', cancelLabel = 'Batal', theme = 'red') {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            const actionBtn = document.getElementById('confirmActionBtn');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+            const iconWrapper = document.getElementById('confirmIconWrapper');
+            const iconEl = document.getElementById('confirmIcon');
+
+            actionBtn.textContent = confirmLabel;
+            cancelBtn.textContent = cancelLabel;
+
+            if (theme === 'blue') {
+                iconWrapper.className = 'w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto';
+                iconEl.setAttribute('data-lucide', 'cloud-download');
+                actionBtn.className = 'flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition';
+            } else {
+                iconWrapper.className = 'w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto';
+                iconEl.setAttribute('data-lucide', 'alert-triangle');
+                actionBtn.className = 'flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition';
+            }
+
+            pendingConfirmCallback = onConfirm;
+            pendingCancelCallback = onCancel;
+            document.getElementById('confirmModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeConfirmModal(isFromCancelBtn = false) {
+            document.getElementById('confirmModal').classList.add('hidden');
+            if (isFromCancelBtn && typeof pendingCancelCallback === 'function') {
+                pendingCancelCallback();
+            }
+            pendingConfirmCallback = null;
+            pendingCancelCallback = null;
+        }
+
+        document.getElementById('confirmCancelBtn').addEventListener('click', () => {
+            closeConfirmModal(true);
+        });
+
+        document.getElementById('confirmActionBtn').addEventListener('click', () => {
+            const cb = pendingConfirmCallback;
+            closeConfirmModal(false);
+            if (typeof cb === 'function') {
+                cb();
+            }
+        });
+
+        let toastTimeout;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toastMessage');
+            const iconEl = document.getElementById('toastIcon');
+
+            msgEl.textContent = message;
+            if (type === 'error') {
+                iconEl.setAttribute('data-lucide', 'alert-circle');
+                iconEl.className = 'w-4 h-4 text-red-400';
+            } else {
+                iconEl.setAttribute('data-lucide', 'check-circle-2');
+                iconEl.className = 'w-4 h-4 text-emerald-400';
+            }
+            lucide.createIcons();
+
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3200);
+        }
+
+        // =====================================================================
+        // INISIALISASI SAAT HALAMAN DIMUAT
+        // =====================================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            setupLocalAuthUI();
+
+            // Cek apakah ada sesi aktif sebelumnya di tab browser ini
+            try {
+                const savedSessionRaw = sessionStorage.getItem(ACTIVE_SESSION_KEY);
+                if (savedSessionRaw) {
+                    const parsedSession = JSON.parse(savedSessionRaw);
+                    if (parsedSession && parsedSession.isAuthenticated) {
+                        enterApplication(parsedSession);
+                        return;
+                    }
+                }
+            } catch (e) {}
+
+            lucide.createIcons();
+        });
+
+        window.addEventListener('load', () => {
+            if (driveState.clientId) {
+                initGoogleIdentityClient();
+            }
+        });
+    </script>
+</body>
+</html>
